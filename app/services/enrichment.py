@@ -1,6 +1,6 @@
 import csv
 import io
-
+import pandas as pd
 import aiohttp
 
 
@@ -72,3 +72,25 @@ class Enrichment:
                 patient["info"] = None
                 output.append(patient)
         return output
+
+    @staticmethod
+    async def enrich_data_in_panda(patient_data: list[dict], enrichment_data: list[dict]):
+        """
+        Enriches patient data by matching records with enrichment data based on chromosome, position, ref, and alt.
+    
+        :param patient_data: List of dictionaries containing patient genomic data.
+        :param enrichment_data: List of dictionaries containing additional information to enrich patient data.
+        :return: List of enriched patient data dictionaries.
+        """
+        # Convert lists to DataFrames
+        patient_df = pd.DataFrame(patient_data)
+        enrichment_df = pd.DataFrame(enrichment_data)
+    
+        # Convert enrichment data into a dictionary for faster lookup
+        enrichment_lookup = enrichment_df.set_index(["chromosome", "position", "ref", "alt"])["info"].to_dict()
+    
+        # Apply enrichment using map function
+        patient_df["info"] = patient_df.set_index(["chromosome", "position", "ref", "alt"]).index.map(enrichment_lookup)
+    
+        # Replace NaN values with None
+        return patient_df.where(pd.notna(patient_df), None).to_dict(orient="records")
